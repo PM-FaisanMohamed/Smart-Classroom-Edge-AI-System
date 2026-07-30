@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Classroom Edge AI — AC Simulation Unit</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-neutral: #0a0e17;
+            --bg-cooling: #051926;
+            --panel-bg: #101623;
+            --panel-card: #151d2f;
+            --panel-border: rgba(255, 255, 255, 0.08);
+            
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            
+            --color-low: #10b981;
+            --color-med: #f59e0b;
+            --color-high: #ef4444;
+            --color-ac: #06b6d4;
+
+            --font-head: 'Barlow Condensed', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Ambient Room Tint Transition */
+        body {
+            background-color: var(--bg-neutral);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem;
+            transition: background-color 1.2s ease, background-image 1.2s ease;
+            background-image: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.02) 0%, transparent 60%);
+        }
+
+        body.room-cooling {
+            background-color: var(--bg-cooling);
+            background-image: 
+                radial-gradient(circle at 50% 35%, rgba(6, 182, 212, 0.15) 0%, transparent 70%),
+                radial-gradient(circle at 20% 80%, rgba(14, 165, 233, 0.08) 0%, transparent 50%);
+        }
+
+        /* HEADER BAR */
+        header {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .pulse-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--color-ac);
+            box-shadow: 0 0 10px var(--color-ac);
+        }
+
+        body.room-cooling .pulse-dot {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 18px var(--color-ac); }
+            100% { transform: scale(0.9); opacity: 0.7; }
+        }
+
+        .brand-title {
+            font-family: var(--font-head);
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #fff;
+        }
+
+        .brand-subtitle {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .backend-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 0.4rem 0.75rem;
+            gap: 0.5rem;
+        }
+
+        .input-group label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .input-group input[type="text"] {
+            background: transparent;
+            border: none;
+            color: var(--color-ac);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            outline: none;
+            width: 170px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.85rem;
+            border-radius: 20px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+        }
+
+        .status-badge.online {
+            border-color: rgba(16, 185, 129, 0.4);
+            color: var(--color-low);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .status-badge.offline {
+            border-color: rgba(239, 68, 68, 0.4);
+            color: var(--color-high);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* MAIN AC STAGE */
+        .ac-stage {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: auto 0;
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        /* SVG AC UNIT ANIMATIONS & STYLING */
+        .svg-ac-container {
+            width: 100%;
+            max-width: 720px;
+            filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.6));
+        }
+
+        /* Power LED Glow */
+        .power-led {
+            transition: fill 0.4s ease, filter 0.4s ease;
+            fill: #374151;
+        }
+        body.room-cooling .power-led {
+            fill: #10b981;
+            filter: drop-shadow(0 0 8px #10b981);
+        }
+
+        /* Fan Rotation */
+        .fan-icon {
+            transform-origin: 512px 145px;
+            transition: transform 0.4s ease;
+        }
+        body.room-cooling .fan-icon {
+            animation: spinFan 1.2s linear infinite;
+        }
+        @keyframes spinFan {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Airflow Dash-Offset Animation */
+        .flow-line {
+            stroke-dasharray: 12 12;
+            stroke-dashoffset: 0;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+        body.room-cooling .flow-line {
+            opacity: 0.85;
+            animation: flowLines 1s linear infinite;
+        }
+        @keyframes flowLines {
+            from { stroke-dashoffset: 24; }
+            to { stroke-dashoffset: 0; }
+        }
+
+        /* Vent Louver Flap */
+        .vent-louver {
+            transform-origin: 350px 225px;
+            transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        body.room-cooling .vent-louver {
+            transform: rotateX(25deg) translateY(6px);
+        }
+
+        /* Digital Display Text */
+        .digital-temp {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            fill: #475569;
+            transition: fill 0.4s ease, filter 0.4s ease;
+        }
+        body.room-cooling .digital-temp {
+            fill: #06b6d4;
+            filter: drop-shadow(0 0 6px #06b6d4);
+        }
+
+        /* TELEMETRY BAR BELOW AC */
+        .telemetry-row {
+            width: 100%;
+            max-width: 900px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .telemetry-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .tele-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .tele-label {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tele-val {
+            font-family: var(--font-head);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .level-tag {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            width: fit-content;
+        }
+        .level-tag.LOW { background: rgba(16, 185, 129, 0.2); color: var(--color-low); border: 1px solid rgba(16, 185, 129, 0.4); }
+        .level-tag.MEDIUM { background: rgba(245, 158, 11, 0.2); color: var(--color-med); border: 1px solid rgba(245, 158, 11, 0.4); }
+        .level-tag.HIGH { background: rgba(239, 68, 68, 0.2); color: var(--color-high); border: 1px solid rgba(239, 68, 68, 0.4); }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="brand">
+            <div class="pulse-dot"></div>
+            <div>
+                <div class="brand-title">Smart AC Actuator Unit</div>
+                <div class="brand-subtitle">Standalone Edge Receiver Simulation</div>
+            </div>
+        </div>
+
+        <div class="backend-controls">
+            <div class="input-group">
+                <label for="backendUrl">BACKEND:</label>
+                <input type="text" id="backendUrl" value="http://localhost:5000" placeholder="http://localhost:5000">
+            </div>
+
+            <div id="connectionStatus" class="status-badge offline">
+                <span class="status-indicator"></span>
+                <span id="statusText">POLLING...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN AC UNIT ANIMATED SVG STAGE -->
+    <div class="ac-stage">
+        
+        <div class="svg-ac-container">
+            <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <!-- Body Gradients -->
+                    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#f8fafc"/>
+                        <stop offset="40%" stop-color="#e2e8f0"/>
+                        <stop offset="90%" stop-color="#cbd5e1"/>
+                        <stop offset="100%" stop-color="#94a3b8"/>
+                    </linearGradient>
+
+                    <linearGradient id="grilleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#1e293b"/>
+                        <stop offset="100%" stop-color="#0f172a"/>
+                    </linearGradient>
+
+                    <linearGradient id="displayGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#090d16"/>
+                        <stop offset="100%" stop-color="#111827"/>
+                    </linearGradient>
+
+                    <linearGradient id="flowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.8"/>
+                        <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.0"/>
+                    </linearGradient>
+
+                    <!-- Drop Shadow -->
+                    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+                        <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#000" flood-opacity="0.5"/>
+                    </filter>
+                </defs>
+
+                <!-- TOP WALL MOUNT BACKING -->
+                <rect x="50" y="30" width="600" height="180" rx="16" fill="url(#bodyGrad)" filter="url(#shadow)" stroke="#64748b" stroke-width="2"/>
+
+                <!-- TOP AIR INTAKE GRILLE SLITS -->
+                <rect x="80" y="42" width="540" height="35" rx="6" fill="url(#grilleGrad)"/>
+                <g stroke="#334155" stroke-width="2">
+                    <line x1="100" y1="42" x2="100" y2="77"/>
+                    <line x1="140" y1="42" x2="140" y2="77"/>
+                    <line x1="180" y1="42" x2="180" y2="77"/>
+                    <line x1="220" y1="42" x2="220" y2="77"/>
+                    <line x1="260" y1="42" x2="260" y2="77"/>
+                    <line x1="300" y1="42" x2="300" y2="77"/>
+                    <line x1="340" y1="42" x2="340" y2="77"/>
+                    <line x1="380" y1="42" x2="380" y2="77"/>
+                    <line x1="420" y1="42" x2="420" y2="77"/>
+                    <line x1="460" y1="42" x2="460" y2="77"/>
+                    <line x1="500" y1="42" x2="500" y2="77"/>
+                    <line x1="540" y1="42" x2="540" y2="77"/>
+                    <line x1="580" y1="42" x2="580" y2="77"/>
+                </g>
+
+                <!-- CENTER BEVEL ACCENT LINE -->
+                <path d="M 50 115 Q 350 125 650 115" fill="none" stroke="#94a3b8" stroke-width="2"/>
+
+                <!-- DIGITAL DISPLAY PANEL RIGHT -->
+                <rect x="460" y="125" width="160" height="42" rx="8" fill="url(#displayGrad)" stroke="#1e293b" stroke-width="1.5"/>
+
+                <!-- POWER LED -->
+                <circle class="power-led" cx="482" cy="146" r="6"/>
+
+                <!-- FAN ICON (ROTATING WHEN ON) -->
+                <g class="fan-icon">
+                    <circle cx="512" cy="146" r="10" fill="none" stroke="#64748b" stroke-width="1.5"/>
+                    <path d="M 512 138 C 516 138, 518 142, 512 146 C 506 150, 508 154, 512 154" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M 504 146 C 504 150, 508 152, 512 146 C 516 140, 520 142, 520 146" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round"/>
+                </g>
+
+                <!-- DIGITAL TEMPERATURE TEXT -->
+                <text id="svgTempDisplay" class="digital-temp" x="595" y="154" font-size="24" text-anchor="end">--°C</text>
+
+                <!-- VENT SLIT & LOUVER FLAP -->
+                <rect class="vent-louver" x="70" y="195" width="560" height="12" rx="4" fill="#334155" stroke="#1e293b"/>
+
+                <!-- ANIMATED AIRFLOW STREAM LINES -->
+                <g stroke="url(#flowGrad)" stroke-width="4" stroke-linecap="round">
+                    <path class="flow-line" d="M 100 215 C 100 240, 80 280, 70 310" fill="none"/>
+                    <path class="flow-line" d="M 180 215 C 180 245, 170 285, 160 310" fill="none"/>
+                    <path class="flow-line" d="M 260 215 C 260 250, 250 290, 250 310" fill="none"/>
+                    <path class="flow-line" d="M 350 215 C 350 255, 350 295, 350 310" fill="none"/>
+                    <path class="flow-line" d="M 440 215 C 440 250, 450 290, 450 310" fill="none"/>
+                    <path class="flow-line" d="M 520 215 C 520 245, 530 285, 540 310" fill="none"/>
+                    <path class="flow-line" d="M 600 215 C 600 240, 620 280, 630 310" fill="none"/>
+                </g>
+            </svg>
+        </div>
+
+    </div>
+
+    <!-- TELEMETRY READOUT BAR BELOW AC -->
+    <div class="telemetry-row">
+        <div class="tele-item">
+            <div class="tele-label">OCCUPANCY LEVEL</div>
+            <div id="teleOccupancy" class="tele-val"><span class="level-tag LOW">LOW</span></div>
+        </div>
+
+        <div class="tele-item">
+            <div class="tele-label">AC POWER STATE</div>
+            <div id="teleAcState" class="tele-val" style="color: var(--text-dim);">OFF</div>
+        </div>
+
+        <div class="tele-item">
+            <div class="tele-label">TARGET TEMP</div>
+            <div id="teleTemp" class="tele-val">24°C</div>
+        </div>
+
+        <div class="tele-item">
+            <div class="tele-label">AC RUNTIME</div>
+            <div id="teleRuntime" class="tele-val" style="font-family: var(--font-mono); font-size: 1.25rem;">00:00:00</div>
+        </div>
+
+        <div class="tele-item">
+            <div class="tele-label">LAST CHANGE</div>
+            <div id="teleLastChange" class="tele-val" style="font-family: var(--font-mono); font-size: 0.95rem; margin-top: 0.25rem;">--:--:--</div>
+        </div>
+    </div>
+
+    <!-- AC SIMULATION LOGIC -->
+    <script>
+        const backendUrlInput = document.getElementById('backendUrl');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const statusText = document.getElementById('statusText');
+        
+        const svgTempDisplay = document.getElementById('svgTempDisplay');
+        const teleOccupancy = document.getElementById('teleOccupancy');
+        const teleAcState = document.getElementById('teleAcState');
+        const teleTemp = document.getElementById('teleTemp');
+        const teleRuntime = document.getElementById('teleRuntime');
+        const teleLastChange = document.getElementById('teleLastChange');
+
+        let isAcOn = false;
+        let acRuntimeSeconds = 0;
+
+        function getBackendUrl() {
+            let url = backendUrlInput.value.trim();
+            if (url.endsWith('/')) url = url.slice(0, -1);
+            return url;
+        }
+
+        // Poll /health and /state every 1.0 second
+        async function pollState() {
+            try {
+                const resp = await fetch(`${getBackendUrl()}/state`);
+                if (resp.ok) {
+                    const st = await resp.json();
+                    
+                    connectionStatus.className = 'status-badge online';
+                    statusText.textContent = 'CONNECTED';
+
+                    // AC Power State & Room Ambient Tint
+                    isAcOn = st.ac_on;
+                    document.body.classList.toggle('room-cooling', isAcOn);
+
+                    // Temperature Display
+                    const currentTemp = st.temperature !== undefined ? st.temperature : st.temp;
+                    if (isAcOn) {
+                        svgTempDisplay.textContent = currentTemp !== null ? `${currentTemp}°C` : `--°C`;
+                        teleAcState.textContent = 'ON';
+                        teleAcState.style.color = 'var(--color-ac)';
+                    } else {
+                        svgTempDisplay.textContent = `--°C`;
+                        teleAcState.textContent = 'OFF';
+                        teleAcState.style.color = 'var(--text-dim)';
+                    }
+
+                    // Occupancy Tag
+                    const occ = st.occupancy || 'LOW';
+                    teleOccupancy.innerHTML = `<span class="level-tag ${occ}">${occ}</span>`;
+                    
+                    teleTemp.textContent = currentTemp !== null ? `${currentTemp}°C` : '—';
+
+                    if (st.total_ac_runtime_seconds !== undefined) {
+                        acRuntimeSeconds = st.total_ac_runtime_seconds;
+                    }
+                    if (st.last_change_timestamp) {
+                        teleLastChange.textContent = st.last_change_timestamp.split(' ')[1] || st.last_change_timestamp;
+                    }
+                } else {
+                    throw new Error("Non 200 response");
+                }
+            } catch (err) {
+                connectionStatus.className = 'status-badge offline';
+                statusText.textContent = 'OFFLINE';
+                document.body.classList.remove('room-cooling');
+                svgTempDisplay.textContent = `--°C`;
+                teleAcState.textContent = 'OFFLINE';
+                teleAcState.style.color = 'var(--color-high)';
+            }
+        }
+
+        // Local 1-second clock counter for AC runtime
+        setInterval(() => {
+            if (isAcOn) {
+                acRuntimeSeconds += 1;
+            }
+            const totalSec = Math.floor(acRuntimeSeconds);
+            const hrs = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+            const secs = String(totalSec % 60).padStart(2, '0');
+            teleRuntime.textContent = `${hrs}:${mins}:${secs}`;
+        }, 1000);
+
+        // Start polling
+        window.addEventListener('load', () => {
+            pollState();
+            setInterval(pollState, 1000);
+        });
+    </script>
+</body>
+</html>
