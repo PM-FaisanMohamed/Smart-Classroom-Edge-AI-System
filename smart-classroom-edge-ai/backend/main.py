@@ -44,8 +44,11 @@ ac_simulator = ACSimulator(current_config.ac_rules)
 # Global session timeline log
 timeline_log: List[Dict[str, Any]] = []
 
+def get_local_now_str() -> str:
+    return datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
 def record_timeline_entry(occupancy: str, raw_count: int, smoothed_count: int, ac_on: bool, temp: Optional[float], activity: str):
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = get_local_now_str()
     entry = {
         "time": now_str,
         "occupancy": occupancy,
@@ -79,7 +82,7 @@ def process_frame_pipeline(frame_bgr: np.ndarray) -> Dict[str, Any]:
     Inference -> Stabilization -> Cleaning Detection -> AC Simulation -> Telemetry update
     """
     now = time.time()
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = get_local_now_str()
 
     # 1. Inference Service (YOLO conf=0.33, iou=0.95, imgsz=640)
     inf_res = inference_engine.detect(frame_bgr)
@@ -116,7 +119,7 @@ def get_current_state_snapshot(confidence: float = 1.0, raw_count: int = 0, smoo
                                detections: List[Any] = None, clean_res: Dict[str, Any] = None, stab_res: Dict[str, Any] = None) -> Dict[str, Any]:
     # Reset occupancy to LOW if stream is idle (no video/webcam frame received for > 5 seconds)
     stabilizer.check_idle_timeout(max_idle_seconds=5.0)
-    ac_state = ac_simulator.update_occupancy_state(stabilizer.current_stable_state, timestamp_str=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    ac_state = ac_simulator.update_occupancy_state(stabilizer.current_stable_state, timestamp_str=get_local_now_str())
     
     current_occupancy = stabilizer.current_stable_state
     candidate_occupancy = stabilizer.candidate_state
@@ -277,8 +280,6 @@ def serve_dashboard():
 @app.get("/ac-simulation/", response_class=HTMLResponse)
 def serve_ac_simulation():
     ac_index = os.path.join(ac_dir, "index.html")
-    if not os.path.exists(ac_index):
-        ac_index = os.path.join(dashboard_dir, "ac_simulation.html")
     if os.path.exists(ac_index):
         with open(ac_index, "r", encoding="utf-8") as f:
             return f.read()

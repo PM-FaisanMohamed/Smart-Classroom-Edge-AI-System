@@ -173,8 +173,7 @@
 
 <header>
   <div class="brand">
-    <span class="eyebrow">Smart Classroom Edge AI</span>
-    <h1>Occupancy Console</h1>
+    <h1>Smart Classroom - Occupancy Console</h1>
   </div>
   <div class="nav-links">
     <a href="/ac-simulation" target="_blank">Open AC Unit UI ↗</a>
@@ -418,7 +417,7 @@ function applyState(state){
   $('acRuntime').textContent = `${hh}:${mm}:${ss}`;
 
   const lastChange = state.last_change || state.last_change_timestamp || '—';
-  $('lastChange').textContent = lastChange.includes('T') ? lastChange.split('T')[1] : lastChange;
+  $('lastChange').textContent = lastChange.includes('T') ? lastChange.split('T')[1] : (lastChange.includes(' ') ? lastChange.split(' ')[1] : lastChange);
 
   const timeline = state.timeline || state.timeline_log || [];
   if (timeline.length){

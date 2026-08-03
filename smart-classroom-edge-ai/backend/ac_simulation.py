@@ -3,6 +3,9 @@ import datetime
 from typing import Dict, Any, Optional
 from backend.config import ACRule
 
+def get_local_now_str() -> str:
+    return datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
 class ACSimulator:
     """
     Software Air Conditioner (AC) Actuator Simulator.
@@ -16,7 +19,7 @@ class ACSimulator:
         self.ac_rules = ac_rules
         self.ac_on: bool = False
         self.temperature: Optional[float] = None
-        self.last_change_timestamp: str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.last_change_timestamp: str = get_local_now_str()
         self.total_ac_seconds: float = 0.0
         self.last_time_check: float = time.time()
 
@@ -47,7 +50,7 @@ class ACSimulator:
         if target_ac_on != self.ac_on or target_temp != self.temperature:
             self.ac_on = target_ac_on
             self.temperature = target_temp
-            self.last_change_timestamp = timestamp_str or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.last_change_timestamp = timestamp_str or get_local_now_str()
             changed = True
             print(f"[AC SIMULATOR] State Changed -> AC {'ON' if self.ac_on else 'OFF'}, Temp: {self.temperature}°C at {self.last_change_timestamp}")
 
