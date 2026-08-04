@@ -1,0 +1,18 @@
+services:
+  edge-ai-system:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: smart-classroom-edge-ai:latest
+    container_name: smart-classroom-edge-ai
+    environment:
+      - TZ=Asia/Kolkata
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./models:/app/models
+      - ./videos:/app/videos
+    # For Linux edge devices with physical webcam access:
+    # devices:
+    #   - "/dev/video0:/dev/video0"
+    restart: unless-stopped

@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Classroom Console · Occupancy &amp; AC Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0f1319;
+    --panel: #1a2029;
+    --panel-alt: #141922;
+    --line: #2a323d;
+    --text: #e7edf5;
+    --text-dim: #8996a6;
+    --low: #57c785;
+    --medium: #e8a93b;
+    --high: #e8573f;
+    --cool: #4fb8e8;
+    --radius: 10px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+  .grid-overlay{
+    position: fixed; inset:0; pointer-events:none; opacity:.04;
+    background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 16px 24px; border-bottom: 1px solid var(--line);
+    background: var(--panel-alt);
+    position: sticky; top:0; z-index:5;
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand .eyebrow{
+    font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.14em;
+    color: var(--text-dim); text-transform:uppercase;
+  }
+  .brand h1{
+    font-family:'Barlow Condensed', sans-serif; font-weight:700; font-size:22px;
+    letter-spacing:.02em; margin:0; text-transform:uppercase;
+  }
+  .nav-links{ display:flex; gap:12px; align-items:center; }
+  .nav-links a{ color:var(--cool); font-family:'JetBrains Mono', monospace; font-size:12px; text-decoration:none; padding:4px 8px; border:1px solid rgba(79,184,232,0.3); border-radius:5px; }
+  .nav-links a:hover{ background:rgba(79,184,232,0.1); }
+
+  .conn{ display:flex; align-items:center; gap:18px; font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--text-dim); }
+  .conn input{
+    background: var(--panel); border:1px solid var(--line); color:var(--text);
+    font-family:'JetBrains Mono', monospace; font-size:12px; padding:6px 10px; border-radius:6px; width:200px;
+  }
+  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; background: var(--high); box-shadow: 0 0 8px var(--high); }
+  .dot.ok{ background: var(--low); box-shadow: 0 0 8px var(--low); }
+
+  main{ max-width: 1240px; margin: 0 auto; padding: 22px 24px 60px; position:relative; }
+
+  .row{ display:grid; gap:16px; }
+  .row.top{ grid-template-columns: 1.15fr 0.85fr; }
+  .row.cards{ grid-template-columns: repeat(4, 1fr); margin-top:16px; }
+  .row.bottom{ grid-template-columns: 1.2fr 0.8fr; margin-top:16px; }
+
+  .panel{
+    background: var(--panel); border:1px solid var(--line); border-radius: var(--radius);
+    padding:16px;
+  }
+  .panel h2{
+    font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--text-dim); margin:0 0 12px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+
+  /* Video panel */
+  .video-wrap{ position:relative; border-radius:8px; overflow:hidden; background:#000; aspect-ratio: 16/10; }
+  video{ width:100%; height:100%; object-fit: cover; display:block; }
+  .video-badge{
+    position:absolute; top:10px; left:10px; font-family:'JetBrains Mono', monospace;
+    font-size:11px; background:rgba(0,0,0,.65); padding:4px 8px; border-radius:5px; color:var(--low);
+    display:flex; align-items:center; gap:6px; backdrop-filter:blur(4px);
+  }
+  .video-badge .pulse{ width:6px; height:6px; border-radius:50%; background:var(--high); animation: pulse 1.4s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.25;} }
+  .video-controls{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center; }
+  .video-controls button, .video-controls label.file-btn{
+    font-family:'Inter'; font-size:12.5px; font-weight:500; padding:7px 12px; border-radius:6px;
+    border:1px solid var(--line); background: var(--panel-alt); color:var(--text); cursor:pointer;
+  }
+  .video-controls button.active{ border-color: var(--cool); color:var(--cool); }
+  .video-controls input[type=file]{ display:none; }
+  .cadence{ margin-left:auto; font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
+  .cadence input{ width:52px; background: var(--panel-alt); border:1px solid var(--line); color:var(--text); border-radius:5px; padding:3px 6px; }
+
+  /* Occupancy readout */
+  .readout{ display:flex; flex-direction:column; align-items:center; justify-content:center; height: calc(100% - 26px); text-align:center; }
+  .level-label{
+    font-family:'Barlow Condensed', sans-serif; font-weight:700; font-size:64px; line-height:1;
+    letter-spacing:.01em; text-transform:uppercase;
+  }
+  .level-label.LOW{ color: var(--low); }
+  .level-label.MEDIUM{ color: var(--medium); }
+  .level-label.HIGH{ color: var(--high); }
+  .level-sub{ font-family:'JetBrains Mono', monospace; color:var(--text-dim); font-size:13px; margin-top:12px; }
+  .conf-bar{ width:80%; height:6px; background: var(--panel-alt); border-radius:4px; margin-top:16px; overflow:hidden; }
+  .conf-fill{ height:100%; background: var(--cool); width:0%; transition: width .3s ease; }
+
+  /* Stat cards */
+  .card{ background: var(--panel); border:1px solid var(--line); border-radius: var(--radius); padding:14px 16px; }
+  .card .k{ font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); }
+  .card .v{ font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:28px; margin-top:6px; }
+  .card .v.on{ color: var(--cool); }
+  .card .v.off{ color: var(--text-dim); }
+  .card .v small{ font-size:16px; color:var(--text-dim); font-family:'JetBrains Mono', monospace; }
+
+  /* Strip chart */
+  .strip-wrap canvas{ width:100%; height:120px; display:block; border-radius:6px; background: var(--panel-alt); }
+  .legend{ display:flex; gap:16px; margin-top:10px; font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-dim); }
+  .legend span{ display:flex; align-items:center; gap:6px; }
+  .swatch{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+
+  /* Change log */
+  .log{ list-style:none; margin:0; padding:0; max-height: 250px; overflow-y:auto; }
+  .log li{
+    display:flex; justify-content:space-between; gap:10px; padding:8px 0;
+    border-bottom:1px dashed var(--line); font-size:13px;
+  }
+  .log li:last-child{ border-bottom:none; }
+  .log .t{ font-family:'JetBrains Mono', monospace; color:var(--text-dim); font-size:11.5px; }
+  .log .lvl{ font-weight:600; }
+  .log .lvl.LOW{ color: var(--low); } .log .lvl.MEDIUM{ color: var(--medium); } .log .lvl.HIGH{ color: var(--high); }
+  .empty{ color:var(--text-dim); font-size:13px; padding: 6px 0; }
+
+  /* Config panel */
+  .cfg-section-title{ font-family:'JetBrains Mono', monospace; font-size:11px; text-transform:uppercase; color:var(--cool); margin:12px 0 6px; border-bottom:1px solid var(--line); padding-bottom:4px; }
+  .cfg-row{ display:grid; grid-template-columns: 70px 1fr 90px; gap:10px; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); }
+  .cfg-row:last-of-type{ border-bottom:none; }
+  .cfg-row .lvl-tag{ font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:600; padding:3px 8px; border-radius:5px; text-align:center; }
+  .cfg-row .lvl-tag.LOW{ background: rgba(87,199,133,.12); color:var(--low); }
+  .cfg-row .lvl-tag.MEDIUM{ background: rgba(232,169,59,.12); color:var(--medium); }
+  .cfg-row .lvl-tag.HIGH{ background: rgba(232,87,63,.12); color:var(--high); }
+  .cfg-row label{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-dim); }
+  .cfg-row input[type=number]{
+    background: var(--panel-alt); border:1px solid var(--line); color:var(--text);
+    border-radius:5px; padding:4px 8px; width:100%; font-family:'JetBrains Mono', monospace; font-size:12px;
+  }
+  .cfg-inline{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:8px; }
+  .cfg-inline label{ font-size:11.5px; color:var(--text-dim); font-family:'JetBrains Mono', monospace; display:flex; flex-direction:column; gap:4px; }
+  .cfg-inline input{ background: var(--panel-alt); border:1px solid var(--line); color:var(--text); border-radius:5px; padding:5px 8px; font-family:'JetBrains Mono', monospace; font-size:12px; }
+
+  .save-btn{
+    margin-top:14px; width:100%; padding:9px; border-radius:6px; border:1px solid var(--cool);
+    background: rgba(79,184,232,.1); color:var(--cool); font-weight:600; cursor:pointer; font-family:'Inter';
+  }
+  .save-btn:hover{ background: rgba(79,184,232,.2); }
+  .save-msg{ font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--low); margin-top:8px; min-height:14px; text-align:center; }
+
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-thumb{ background: var(--line); border-radius:4px; }
+
+  @media (max-width: 1000px){
+    .row.top, .row.cards, .row.bottom{ grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="grid-overlay"></div>
+
+<header>
+  <div class="brand">
+    <h1>Smart Classroom - Occupancy Console</h1>
+  </div>
+  <div class="nav-links">
+    <a href="/ac-simulation" target="_blank">Open AC Unit UI ↗</a>
+  </div>
+  <div class="conn">
+    <span><span id="connDot" class="dot"></span><span id="connText">connecting…</span></span>
+    <input id="backendUrl" value="http://localhost:5000" spellcheck="false" />
+  </div>
+</header>
+
+<main>
+
+  <div class="row top">
+    <div class="panel">
+      <h2>Live Feed</h2>
+      <div class="video-wrap">
+        <video id="video" autoplay muted playsinline loop></video>
+        <div class="video-badge"><span class="pulse"></span><span id="feedLabel">idle</span></div>
+      </div>
+      <div class="video-controls">
+        <button id="btnWebcam">Use webcam</button>
+        <label class="file-btn" for="sampleFile">Load sample video…</label>
+        <input type="file" id="sampleFile" accept="video/*" />
+        <div class="cadence">
+          capture every <input type="number" id="cadence" value="1.0" step="0.5" min="0.5" /> s
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Occupancy</h2>
+      <div class="readout">
+        <div id="levelLabel" class="level-label LOW">LOW</div>
+        <div class="counts-row">
+          Raw: <strong id="valRaw">0</strong> | Smoothed: <strong id="valSmoothed">0</strong>
+        </div>
+        <div class="level-sub" id="levelSub">confidence 100%</div>
+        <div class="conf-bar"><div class="conf-fill" id="confFill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row cards">
+    <div class="card">
+      <div class="k">AC State</div>
+      <div class="v off" id="acState">OFF</div>
+    </div>
+    <div class="card">
+      <div class="k">Temperature</div>
+      <div class="v" id="acTemp">—</div>
+    </div>
+    <div class="card">
+      <div class="k">AC Running Time</div>
+      <div class="v" id="acRuntime">00:00:00</div>
+    </div>
+    <div class="card">
+      <div class="k">Last Change</div>
+      <div class="v" id="lastChange" style="font-size:18px;">—</div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:16px;">
+    <div class="panel strip-wrap">
+      <h2>Occupancy Timeline <span id="chartHint" style="text-transform:none; letter-spacing:0;">scrolling · most recent →</span></h2>
+      <canvas id="strip" width="1180" height="120"></canvas>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--low)"></span>Low</span>
+        <span><span class="swatch" style="background:var(--medium)"></span>Medium</span>
+        <span><span class="swatch" style="background:var(--high)"></span>High</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="row bottom">
+    <div class="panel">
+      <h2>Change Log</h2>
+      <ul class="log" id="logList"><li class="empty">No changes yet.</li></ul>
+    </div>
+
+    <div class="panel">
+      <h2>AC Thresholds</h2>
+      
+      <div class="cfg-section-title">AC Rules per Level</div>
+      <div id="cfgRows"></div>
+
+      <div class="cfg-section-title">Hysteresis &amp; Dwell Thresholds</div>
+      <div class="cfg-inline">
+        <label>Low → Med Threshold
+          <input type="number" id="cfgLowMed" value="3" min="1"/>
+        </label>
+        <label>Med → Low Threshold
+          <input type="number" id="cfgMedLow" value="2" min="0"/>
+        </label>
+        <label>Med → High Threshold
+          <input type="number" id="cfgMedHigh" value="10" min="2"/>
+        </label>
+        <label>High → Med Threshold
+          <input type="number" id="cfgHighMed" value="9" min="1"/>
+        </label>
+      </div>
+
+      <div class="cfg-inline">
+        <label>Rolling Window (sec)
+          <input type="number" id="cfgWinSec" value="8.0" step="1.0" min="2"/>
+        </label>
+        <label>Dwell Timer (sec)
+          <input type="number" id="cfgDwellSec" value="5.0" step="1.0" min="1"/>
+        </label>
+      </div>
+
+      <button class="save-btn" id="saveCfg">Save configuration</button>
+      <div class="save-msg" id="saveMsg"></div>
+    </div>
+  </div>
+
+</main>
+
+<canvas id="captureCanvas" width="640" height="400" style="display:none;"></canvas>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+const video = $('video');
+const captureCanvas = $('captureCanvas');
+const ctx = captureCanvas.getContext('2d');
+
+let backendUrl = $('backendUrl').value.replace(/\/$/, '');
+$('backendUrl').addEventListener('change', () => {
+  backendUrl = $('backendUrl').value.replace(/\/$/, '');
+});
+
+let captureTimer = null;
+let stateTimer = null;
+let webcamStream = null;
+
+// ---------- Video sources ----------
+async function useWebcam(){
+  stopSource();
+  try{
+    webcamStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 400 } });
+    video.srcObject = webcamStream;
+    video.loop = false;
+    $('feedLabel').textContent = 'webcam · live';
+    $('btnWebcam').classList.add('active');
+    startCaptureLoop();
+  }catch(e){
+    $('feedLabel').textContent = 'webcam denied';
+    alert('Could not access webcam: ' + e.message);
+  }
+}
+
+function useSampleFile(file){
+  stopSource();
+  const url = URL.createObjectURL(file);
+  video.srcObject = null;
+  video.src = url;
+  video.loop = true;
+  video.play();
+  $('feedLabel').textContent = 'sample video · ' + file.name;
+  $('btnWebcam').classList.remove('active');
+  startCaptureLoop();
+}
+
+function stopSource(){
+  if (webcamStream){ webcamStream.getTracks().forEach(t => t.stop()); webcamStream = null; }
+  if (captureTimer){ clearInterval(captureTimer); captureTimer = null; }
+  video.pause(); video.removeAttribute('src'); video.srcObject = null; video.load();
+}
+
+$('btnWebcam').addEventListener('click', useWebcam);
+$('sampleFile').addEventListener('change', (e) => {
+  if (e.target.files[0]) useSampleFile(e.target.files[0]);
+});
+$('cadence').addEventListener('change', () => { if (captureTimer) startCaptureLoop(); });
+
+// ---------- Capture + inference loop ----------
+function startCaptureLoop(){
+  if (captureTimer) clearInterval(captureTimer);
+  const seconds = Math.max(0.5, parseFloat($('cadence').value) || 1.0);
+  captureTimer = setInterval(captureAndPredict, seconds * 1000);
+}
+
+async function captureAndPredict(){
+  if (video.readyState < 2) return;
+  ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+  const dataUrl = captureCanvas.toDataURL('image/jpeg', 0.75);
+
+  try{
+    const res = await fetch(backendUrl + '/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: dataUrl })
+    });
+    if (!res.ok){
+      const err = await res.json().catch(() => ({}));
+      $('levelSub').textContent = err.detail || ('backend error ' + res.status);
+      return;
+    }
+    const data = await res.json();
+    renderPrediction(data);
+  }catch(e){
+    $('connDot').classList.remove('ok');
+    $('connText').textContent = 'unreachable';
+  }
+}
+
+function renderPrediction(data){
+  const state = data.state || {};
+  applyState(state);
+  const confPercent = Math.round((data.confidence || 1.0) * 100);
+  $('levelSub').textContent = 'confidence ' + confPercent + '%';
+  $('confFill').style.width = confPercent + '%';
+}
+
+// ---------- Shared state rendering ----------
+let history = [];
+
+function applyState(state){
+  const lvl = state.occupancy || 'LOW';
+  const lbl = $('levelLabel');
+  lbl.textContent = lvl;
+  lbl.className = 'level-label ' + lvl;
+
+  if ($('valRaw')) $('valRaw').textContent = state.raw_count != null ? state.raw_count : 0;
+  if ($('valSmoothed')) $('valSmoothed').textContent = state.smoothed_count != null ? state.smoothed_count : 0;
+
+  const confPercent = Math.round((state.confidence || 1.0) * 100);
+  $('levelSub').textContent = 'confidence ' + confPercent + '%';
+  $('confFill').style.width = confPercent + '%';
+
+  const acState = $('acState');
+  acState.textContent = state.ac_on ? 'ON' : 'OFF';
+  acState.className = 'v ' + (state.ac_on ? 'on' : 'off');
+
+  $('acTemp').innerHTML = state.temperature != null ? state.temperature + '<small>°C</small>' : '—';
+
+  const secs = Math.floor(state.total_ac_seconds || state.total_ac_runtime_seconds || 0);
+  const hh = String(Math.floor(secs/3600)).padStart(2,'0');
+  const mm = String(Math.floor((secs%3600)/60)).padStart(2,'0');
+  const ss = String(secs%60).padStart(2,'0');
+  $('acRuntime').textContent = `${hh}:${mm}:${ss}`;
+
+  const lastChange = state.last_change || state.last_change_timestamp || '—';
+  $('lastChange').textContent = lastChange.includes('T') ? lastChange.split('T')[1] : (lastChange.includes(' ') ? lastChange.split(' ')[1] : lastChange);
+
+  const timeline = state.timeline || state.timeline_log || [];
+  if (timeline.length){
+    history = timeline;
+    renderStrip(history);
+    renderLog(history);
+  }
+}
+
+function renderLog(timeline){
+  const changes = [];
+  let prevOcc = null;
+  for (const entry of timeline){
+    if (entry.occupancy !== prevOcc){
+      changes.push(entry);
+      prevOcc = entry.occupancy;
+    }
+  }
+  const recent = changes.slice(-25).reverse();
+  const list = $('logList');
+  if (!recent.length){ list.innerHTML = '<li class="empty">No changes yet.</li>'; return; }
+  list.innerHTML = recent.map(c => `
+    <li>
+      <span class="t">${(c.time || '').includes(' ') ? c.time.split(' ')[1] : c.time}</span>
+      <span class="lvl ${c.occupancy}">${c.occupancy}</span>
+    </li>
+  `).join('');
+}
+
+function renderStrip(timeline){
+  const canvas = $('strip');
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0,0,W,H);
+
+  const colors = { LOW:'#57c785', MEDIUM:'#e8a93b', HIGH:'#e8573f' };
+  const yFor = (lvl) => lvl === 'HIGH' ? H*0.18 : lvl === 'MEDIUM' ? H*0.5 : H*0.82;
+
+  // Grid lines
+  c.strokeStyle = 'rgba(255,255,255,0.06)';
+  c.lineWidth = 1;
+  [0.18,0.5,0.82].forEach(f => { c.beginPath(); c.moveTo(0,H*f); c.lineTo(W,H*f); c.stroke(); });
+
+  const points = timeline.slice(-120);
+  if (points.length < 2) return;
+  const stepX = W / (points.length - 1);
+
+  c.beginPath();
+  points.forEach((p, i) => {
+    const x = i * stepX;
+    const y = yFor(p.occupancy);
+    if (i === 0) c.moveTo(x,y); else c.lineTo(x,y);
+  });
+  c.strokeStyle = colors[points[points.length-1].occupancy] || '#4fb8e8';
+  c.lineWidth = 2;
+  c.stroke();
+
+  points.forEach((p, i) => {
+    const x = i * stepX;
+    const y = yFor(p.occupancy);
+    c.fillStyle = colors[p.occupancy] || '#8996a6';
+    c.beginPath(); c.arc(x,y, 2.5, 0, Math.PI*2); c.fill();
+  });
+}
+
+// ---------- Background sync (health + state) ----------
+async function syncState(){
+  try{
+    const [healthRes, stateRes] = await Promise.all([
+      fetch(backendUrl + '/health'),
+      fetch(backendUrl + '/state')
+    ]);
+    if (healthRes.ok){
+      const h = await healthRes.json();
+      $('connDot').classList.add('ok');
+      $('connText').textContent = h.model_loaded ? 'connected · model ready' : 'connected · Standby mode';
+    }
+    if (stateRes.ok){
+      const s = await stateRes.json();
+      applyState(s);
+    }
+  }catch(e){
+    $('connDot').classList.remove('ok');
+    $('connText').textContent = 'unreachable';
+  }
+}
+stateTimer = setInterval(syncState, 2000);
+syncState();
+
+// ---------- Threshold config ----------
+const LEVELS = ['LOW','MEDIUM','HIGH'];
+function buildCfgRows(cfgRules){
+  $('cfgRows').innerHTML = LEVELS.map(lvl => {
+    const rule = cfgRules[lvl] || { ac_on: lvl !== 'LOW', temperature: lvl === 'HIGH' ? 20 : 24 };
+    return `
+      <div class="cfg-row" data-level="${lvl}">
+        <span class="lvl-tag ${lvl}">${lvl}</span>
+        <label><input type="checkbox" ${rule.ac_on ? 'checked' : ''} class="ac-on"/> AC on</label>
+        <input type="number" class="ac-temp" placeholder="°C" value="${rule.temperature ?? ''}" />
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadConfig(){
+  try{
+    const res = await fetch(backendUrl + '/config');
+    if (res.ok){
+      const cfg = await res.json();
+      if (cfg.ac_rules) buildCfgRows(cfg.ac_rules);
+      if (cfg.hysteresis){
+        $('cfgLowMed').value = cfg.hysteresis.low_to_medium ?? 3;
+        $('cfgMedLow').value = cfg.hysteresis.medium_to_low ?? 2;
+        $('cfgMedHigh').value = cfg.hysteresis.medium_to_high ?? 10;
+        $('cfgHighMed').value = cfg.hysteresis.high_to_medium ?? 9;
+      }
+      if (cfg.stabilization){
+        $('cfgWinSec').value = cfg.stabilization.window_seconds ?? 8.0;
+        $('cfgDwellSec').value = cfg.stabilization.dwell_seconds ?? 5.0;
+      }
+    }
+  }catch(e){ /* backend starting */ }
+}
+loadConfig();
+
+$('saveCfg').addEventListener('click', async () => {
+  const ac_rules = {};
+  document.querySelectorAll('.cfg-row').forEach(row => {
+    const lvl = row.dataset.level;
+    const acOn = row.querySelector('.ac-on').checked;
+    const tempVal = row.querySelector('.ac-temp').value;
+    ac_rules[lvl] = { ac_on: acOn, temperature: tempVal === '' ? null : parseFloat(tempVal) };
+  });
+
+  const payload = {
+    ac_rules: ac_rules,
+    hysteresis: {
+      low_to_medium: parseInt($('cfgLowMed').value) || 3,
+      medium_to_low: parseInt($('cfgMedLow').value) || 2,
+      medium_to_high: parseInt($('cfgMedHigh').value) || 10,
+      high_to_medium: parseInt($('cfgHighMed').value) || 9
+    },
+    stabilization: {
+      window_seconds: parseFloat($('cfgWinSec').value) || 8.0,
+      dwell_seconds: parseFloat($('cfgDwellSec').value) || 5.0
+    }
+  };
+
+  try{
+    const res = await fetch(backendUrl + '/config', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    });
+    if (res.ok){
+      $('saveMsg').textContent = 'Saved at ' + new Date().toLocaleTimeString();
+      setTimeout(() => $('saveMsg').textContent = '', 3000);
+    }
+  }catch(e){ $('saveMsg').textContent = 'Could not reach backend.'; }
+});
+</script>
+</body>
+</html>
