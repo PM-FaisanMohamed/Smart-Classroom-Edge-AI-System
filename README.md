@@ -1,5 +1,19 @@
 # Smart Classroom Edge AI System
 
+## 👥 Project Team (Group 8)
+- **Product Owner:** Kumaran Vithushan (`kumaran-vithushan`)
+- **Project Manager:** PM. Faisan Mohamed (`PM-FaisanMohamed`)
+- **Data Scientists:** 
+  - E.M. Dulanjana Hirushan (`hirushan26`)
+  - R.D. Thakshila Kumari (`KThakshila`)
+  - M.M. Mariyam (`MohamedMihlarMaryam`)
+- **App Developers:** 
+  - Janana Methsara (`jananamethsara`)
+  - Danush Kavindaka (`DK0747`)
+  - Sivaraja Pratheep (`sivarajapratheep175`)
+
+---
+
 An Edge AI classroom occupancy monitoring, activity classification, and automated building management system (BMS) prototype.
 
 The system processes video streams locally on edge hardware using a **YOLO model (`yolo26s.pt`)**, applies **occupancy stabilization filtering (rolling median + hysteresis + dwell timers + walkthrough abort + idle stream decay)**, detects **janitor cleaning activity**, and dynamically automates classroom Air Conditioning (AC) state and temperature settings without any cloud inference dependency.
